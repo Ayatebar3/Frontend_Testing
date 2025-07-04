@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas Playground</title>
+</head>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background-image: linear-gradient(to right, rgb(51, 204, 204), rgb(102, 255, 102));
+  }
+
+  canvas {
+    background-color: black;
+    width: 100vw;
+  }
+</style>
+
+<body>
+  <div id="app"></div>
+</body>
+
+<script>
+  const canvas = document.createElement("canvas");
+  const offScreen = document.createElement("canvas");
+  const context = canvas.getContext('2d');
+  const context_2 = offScreen.getContext('2d');
+
+  const entityList = [];
+
+  window.onload = () => {
+    canvas.width = 1920;
+    canvas.height = 1080;
+    offScreen.width = 1920;
+    offScreen.height = 1080;
+
+    document.querySelector('#app').appendChild(canvas);
+
+    canvas.addEventListener("click", (e) => {
+      const eventCoords = {
+        x: event.clientX,
+        y: event.clientY
+      }
+      const { x, y } = getMouseOnCanvasPosition(eventCoords)
+      entityList.push(new Circle(x, y));
+    });
+    animationLoop()
+  }
+
+  class Circle {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.t = 10;
+    }
+  }
+
+  const drawCircles = () => {
+    for (const circle of entityList) {
+      const radius =  Math.exp(0.075 * circle.t);
+      const x = circle.x + (radius * Math.cos(radius))
+      const y = circle.y + (radius * Math.sin(radius))
+
+      drawRect({ x, y });
+      context.drawImage(offScreen, 0, 0)
+      drawLine(circle, x, y);
+      circle.t += 25 / (radius);
+
+      // if (x < 0 || x > canvas.width || y < 0 || y > canvas.height) {
+      //   const index = entityList.indexOf(circle);
+      //   entityList.splice(index, 1)
+      // } else {
+      //   circle.t += 15 / (radius);
+      // }
+    }
+  }
+
+  const drawRect = (position) => {
+    const radius = 5;
+    context_2.save();
+    context_2.fillStyle = "fuchsia";
+    context_2.fillRect(
+      position.x,
+      position.y,
+      radius,
+      radius
+    );
+    context_2.restore();
+  }
+
+  const drawLine = (origin, x, y) => {
+    context.save();
+    context.lineWidth = 5;
+    context.strokeStyle = "lime"
+    context.beginPath();
+    context.moveTo(origin.x, origin.y);
+    context.lineTo(x, y);
+    context.stroke();
+    context.closePath();
+    context.restore();
+  }
+
+
+  const getCanvasOffset = () => {
+    return canvas.getBoundingClientRect();
+  }
+
+  const getCanvasScaleFactors = (offset) => {
+    return {
+      x: canvas.width / offset.width,
+      y: canvas.height / offset.height
+    }
+  }
+
+  const getMouseOnCanvasPosition = (mouseCoordinates) => {
+    const canvasOffset = getCanvasOffset();
+    const scaleFactors = getCanvasScaleFactors(canvasOffset);
+    return {
+      x: (mouseCoordinates.x - canvasOffset.left) * scaleFactors.x,
+      y: (mouseCoordinates.y - canvasOffset.top) * scaleFactors.y
+    }
+  }
+
+  const clear = () => {
+    context.save()
+    context.clearRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    )
+    context.restore()
+  }
+
+  const animationLoop = () => {
+    requestAnimationFrame(animationLoop)
+    clear()
+    drawCircles()
+  }
+
+</script>
+
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+
+<style>
+  body {
+    padding: 1rem;
+    margin: 10px;
+    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+  }
+
+  #appContainer>.columns {
+    border: 2px solid red;
+  }
+
+  #appContainer>.columns>.column {
+    border: 1px solid blue;
+  }
+
+  #canvas-wrapper {
+    border: 10px solid black;
+    padding: 10px;
+    height: 80vh;
+  }
+
+  canvas {
+    border: 1px solid red
+  }
+</style>
+
+<body>
+  <div id="app-root"></div>
+
+  <div class="container" id="appContainer">
+
+    <div class="columns">
+
+      <div class="column is-3" id="control-panel"></div>
+
+      <div class="column">
+        <div id="canvas-wrapper"></div>
+      </div>
+
+    </div>
+
+  </div>
+</body>
+
+<script>
+
+  class Component {
+    /**
+     * Create a component
+     * @param {string} type - The type of the element (div, p, input...). Default is <div>.
+     * @param {Object} attributes - The element attributes (className, src, style...)
+     */
+
+    constructor(type = 'div', attributes = {}, children) {
+      this.$element = document.createElement(type)
+      Object.keys(attributes).map(key => this.updateAttibute(key, attributes[key]))
+      this.childComponents = []
+      children ? this.appendChildComponent(children) : {}
+    }
+
+    addClassName = (className) => {
+      this.$element.classList.add(className)
+    }
+
+    appendChildComponent = (child) => {
+      if (child instanceof Component) {
+        this.$element.appendChild(child.getHtmlElement())
+        this.childComponents.push(child)
+      } else if (typeof child === 'string') {
+        this.$element.innerText = child;
+      } else {
+        throw new Error("Components can only append child that is either a 'string' or 'Component' type")
+      }
+    }
+
+    attachEventListener = (type, callback) => {
+      this.$element.addEventListener(type, callback)
+    }
+
+    bindEventListenerToElement = (element, callbackType, callback) => {
+      element.addEventListener(callbackType, callback)
+    }
+
+    detachEventListner = (type, callback) => {
+      this.$element.removeEventListener(type, callback)
+    }
+
+    getChildComponent = (index) => {
+      return this.childComponents[index]
+    }
+
+    getChildrenComponents = () => {
+      return this.childComponents
+    }
+
+    getHtmlElement = () => {
+      return this.$element
+    }
+
+    removeClassName = (className) => {
+      this.$element.classList.remove(className)
+    }
+
+    setStyleAttributes = (value) => {
+      for (let styleKey in value) {
+        this.updateStyleAttribute(styleKey, value[styleKey])
+      }
+    }
+
+    unbindEventListenerToElement = (element, callbackType, callback) => {
+      element.detachEventListner(callbackType, callback)
+    }
+
+    updateAttibute = (key, value) => {
+      if (key === 'style') {
+        this.setStyleAttributes(value)
+      } else {
+        this.$element[key] = value
+      }
+    }
+
+    updateStyleAttribute = (styleKey, value) => {
+      this.$element.style[styleKey] = value
+    }
+  }
+
+  class Container extends Component {
+    constructor(attributes) {
+      super('div', attributes)
+      this.addClassName('container')
+    }
+  }
+
+  class Columns extends Component {
+    constructor(attributes) {
+      super('div', attributes)
+      this.addClassName('columns')
+    }
+
+  }
+
+  class Column extends Component {
+    constructor(attributes) {
+      super('div', attributes)
+      this.addClassName('column')
+    }
+  }
+
+  /************************************************************/
+
+  // Base Object for all Canvas Apps
+  class Canvas extends Component {
+
+    constructor(rootSelector) {
+      super('canvas')
+      this.parentElement = document.querySelector(rootSelector)
+      this.ctx = this.$element.getContext('2d')
+      this.init()
+    }
+
+    init = () => {
+      this.$element.height = this.parentElement.getBoundingClientRect().height - 50
+      this.$element.width = this.parentElement.getBoundingClientRect().width - 50
+      this.parentElement.appendChild(this.$element)
+    }
+
+    getCanvasDimensions = () => {
+      return {
+        height: this.$element.height,
+        width: this.$element.width
+      }
+    }
+
+    getCanvasOffset = () => {
+      return {
+        left: this.$element.getBoundingClientRect().left,
+        top: this.$element.getBoundingClientRect().top
+      }
+    }
+
+    getEventCoordinates = (event) => {
+      return {
+        x: event.clientX,
+        y: event.clientY
+      }
+    }
+
+    getMouseOnCanvasPosition = (event) => {
+      const mouseCoordinates = this.getEventCoordinates(event)
+      const canvasOffset = this.getCanvasOffset()
+      return {
+        x: mouseCoordinates.x - canvasOffset.left,
+        y: mouseCoordinates.y - canvasOffset.top
+      }
+    }
+
+    setContextStyle = (style, value) => {
+      this.ctx[style] = value;
+    }
+
+    startLinePath = (x, y) => {
+      this.ctx.beginPath()
+      this.ctx.moveTo(x, y)
+    }
+
+    endLinePath = () => {
+      this.ctx.closePath()
+    }
+
+    drawLineTo = (x, y) => {
+      this.ctx.lineTo(x, y)
+      this.ctx.stroke()
+    }
+
+    drawRect = (x, y, width, height) => {
+      this.ctx.save()
+      this.ctx.fillRect(x, y, width, height)
+      this.ctx.restore()
+    }
+
+    drawArc = (x, y, radius, startAngle, endAngle, counterClockwise = false) => {
+      this.ctx.save()
+      this.ctx.beginPath()
+      this.ctx.arc(x, y, radius, startAngle, endAngle, counterClockwise)
+      this.ctx.stroke()
+      this.ctx.restore()
+    }
+  }
+
+  // The interactive board for Web Paint
+  class PaintBoard extends Canvas {
+    constructor(rootSelector) {
+      super(rootSelector)
+      this.init()
+    }
+
+    init = () => {
+      this.ctx.lineWidth = 10
+
+      this.attachEventListener('mousedown', this.enableDragDraw)
+      this.attachEventListener('mouseup', this.disableDragDraw)
+      this.attachEventListener('mouseout', this.disableDragDraw)
+    }
+
+    enableDragDraw = (event) => {
+      this.beginLine(event)
+      this.attachEventListener('mousemove', this.mouseMoveEventHandler)
+    }
+
+    disableDragDraw = () => {
+      this.closeLine()
+      this.detachEventListner('mousemove', this.mouseMoveEventHandler)
+    }
+
+    beginLine = (event) => {
+      const { x, y } = this.getMouseOnCanvasPosition(event)
+      this.startLinePath(x, y)
+    }
+
+    closeLine = () => {
+      this.endLinePath();
+    }
+
+    mouseMoveEventHandler = (event) => {
+      const { x, y } = this.getMouseOnCanvasPosition(event)
+      this.drawLineTo(x, y)
+    }
+
+    bindColorChangingButton = (button, color) => {
+      this.bindEventListenerToElement(
+        button,
+        "click",
+        () => this.setContextStyle("strokeStyle", color)
+      )
+    }
+  }
+
+  /*
+    Considerations:
+      - Making a canvas utility class to handle operations between 
+        canvas object and other html elements, objects, or services
+ 
+      - Generalize the app-root initialization for each app on the 
+        portfolio site
+  
+  */
+
+
+
+
+  // <div class="container" id="buttons-container">
+  //   <div class="columns button-row" style="background-color: red;">
+  //     <div class="column button-wrapper">
+  //       <button class="button" value="red"></button>
+  //     </div>
+  //   </div>
+  // </div> 
+
+
+
+  const createColorButtonBlock = (color) => {
+
+    const createColorButtonRow = (color) => {
+      console.log(`color: ${color}`)
+      const row = new Columns({
+        "className": 'button-row',
+        "style": {
+          "background-color": color
+        }
+      })
+      row.appendChildComponent(
+        createColorButtonWrapper(color)
+      )
+
+      return row
+    }
+
+    const createColorButtonWrapper = (color) => {
+      const col = new Column({
+        "className": 'button-wrapper',
+        "text-align": 'center'
+      })
+      col.appendChildComponent(
+        createColorButton(color)
+      )
+
+      return col
+    }
+
+    const createColorButton = (color) => {
+      const button = new Component(
+        'button',
+        {
+          "className": "button",
+          "value": color,
+          "width": '2rem'
+        },
+        `${color}`
+      )
+      paintBoard.bindColorChangingButton(button.$element, color)
+
+      return button
+    }
+
+    return createColorButtonRow(color)
+  }
+
+  const paintBoard = new PaintBoard('#canvas-wrapper')
+  const controlPanel = document.querySelector('#control-panel')
+  const buttonsContainer = new Container({ id: 'buttons-container' })
+  const colors = [
+    'red',
+    'orange',
+    'yellow',
+    'green',
+    'blue',
+    'indigo',
+    'purple',
+    'violet'
+  ]
+
+  window.onload = () => {
+    for (const color of colors) {
+      buttonsContainer.appendChildComponent(
+        createColorButtonBlock(color)
+      )
+    }
+    controlPanel.appendChild(buttonsContainer.getHtmlElement())
+  }
+
+</script>
+
+</html>

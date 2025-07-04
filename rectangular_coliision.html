@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sandbox</title>
+</head>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background-image: linear-gradient(to right, rgb(51, 204, 204), rgb(102, 255, 102));
+  }
+
+  canvas {
+    background-color: white;
+    width: 100vw;
+  }
+</style>
+
+<body>
+  <div id="app"></div>
+</body>
+<script>
+
+  const canvas = document.createElement("canvas")
+  const context = canvas.getContext('2d');
+
+  const rectangles = [];
+  const rect_width = 750;
+  const rect_height = 150;
+  const leftMass = 1;
+  const rightMass = 10_000;
+
+  let collisionCount = 0;
+  const timeDelay = 0;
+
+  window.onload = () => {
+    canvas.width = 1920;
+    canvas.height = 1080;
+
+    const rect_left = new Rectangle(
+      new Position(200, 500),
+      new Velocity(0, 0),
+      rect_width,
+      rect_height,
+      leftMass,
+      "fuchsia"
+    );
+
+    const rect_right = new Rectangle(
+      new Position(1000, 500),
+      new Velocity(-1, 0),
+      rect_width,
+      rect_height,
+      rightMass,
+      "cyan"
+    );
+
+    rectangles.push(rect_left, rect_right);
+    Systems[2]();
+    document.querySelector('#app').appendChild(canvas);
+
+    const applySystems = () => {
+      for (const system of Systems) {
+        system();
+      }
+    }
+
+    // let then = Date.now();
+    const animationLoop = () => {
+      requestAnimationFrame(animationLoop);
+      const now = Date.now();
+      // if (now - then < timeDelay) {
+      //   return
+      // }
+      // then = now;
+      applySystems();
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === ' ') {
+        e.preventDefault();
+        animationLoop();
+      }
+    })
+  }
+
+  class Vector2D {
+    constructor(x = 0, y = 0) {
+      this.x = x;
+      this.y = y;
+    }
+  }
+
+  class Position extends Vector2D {
+    constructor(x, y) {
+      super(x, y);
+    }
+  }
+
+  class Velocity extends Vector2D {
+    constructor(x, y) {
+      super(x, y);
+    }
+  }
+
+  class Rectangle {
+    constructor(position, velocity, width, height, mass, fillStyle) {
+      this.position = position;
+      this.velocity = velocity;
+      this.width = width;
+      this.height = height;
+      this.mass = mass;
+      this.fillStyle = fillStyle;
+    }
+  }
+
+  const Systems = (() => {
+
+    const Kinematics = () => {
+      for (const rect of rectangles) {
+        rect.position.x += rect.velocity.x;
+      }
+    }
+
+    const Collisions = () => {
+
+      const [left, right] = rectangles;
+
+      const didLeftHitWall = () => {
+        return left.position.x <= 0;
+      }
+
+      const didRightReachMaxPosition = () => {
+        return right.position.x <= rect_width;
+      }
+
+      const didRectsCollide = (left, right) => {
+        const r1 = left.position.x + left.width
+        const r2 = right.position.x + right.width
+        return r1 >= right.position.x && r1 <= r2
+      }
+
+      if (didLeftHitWall()) {
+        // left.position.x = 0;
+        left.velocity.x = -left.velocity.x;
+        collisionCount++;
+      }
+
+      // if (didRightReachMaxPosition()) {
+      //   right.position.x -= right.velocity.x;
+      // }
+
+      if (didRectsCollide(left, right)) {
+        const massSum = left.mass + right.mass;
+        const massRatio = (left.mass - right.mass) / massSum;
+        const v_1 = (massRatio * left.velocity.x) + ((2 * right.mass * right.velocity.x) / massSum);
+        const v_2 = ((2 * left.mass * left.velocity.x) / massSum) - (massRatio * right.velocity.x);
+
+        left.velocity.x = v_1;
+        right.velocity.x = v_2;
+
+        // left.position.x = right.position.x - rect_width;
+
+        collisionCount++;
+      }
+
+    }
+
+    const Render = () => {
+
+      const clear = () => {
+        context.save();
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.restore();
+      }
+
+      const drawRect = (rect) => {
+        context.save();
+        context.fillStyle = rect.fillStyle
+        context.fillRect(
+          rect.position.x,
+          rect.position.y,
+          rect.width,
+          rect.height
+        );
+        context.restore();
+      }
+
+      const drawWeight = (rect) => {
+        const x = rect.position.x + (rect_width / 2);
+        const y = rect.position.y - rect_height / 4
+        context.save();
+        // context.fillStyle = "white";
+        context.font = "italic 96px sans-serif";
+        context.fillText(rect.mass, x, y);
+        context.restore();
+      }
+
+      const drawCollisionCount = () => {
+        const x = 250;
+        const y = canvas.height - 250;
+        context.save();
+        // context.fillStyle = "white";
+        context.font = "italic 96px sans-serif";
+        context.fillText(`Collision Count: ${collisionCount}`, x, y);
+        context.restore();
+      }
+
+      clear();
+      for (const rect of rectangles) {
+        drawRect(rect);
+        drawWeight(rect);
+      }
+      drawCollisionCount();
+    }
+
+    return [
+      Kinematics,
+      Collisions,
+      Render
+    ]
+  })();
+
+
+</script>
+
+</html>

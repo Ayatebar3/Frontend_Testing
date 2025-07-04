@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sandbox</title>
+</head>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  canvas {
+    background-color: black;
+    width: 100vw;
+  }
+</style>
+
+<body>
+  <canvas id="myCanvas"></canvas>
+</body>
+<script>
+
+  const canvas = document.querySelector('#myCanvas')
+  const context = canvas.getContext('2d')
+
+  class Circle {
+    constructor(x, y, radius, color) {
+      this.x = x
+      this.y = y
+      this.radius = radius
+      this.color = color
+    }
+    setPosition = (x, y) => {
+      this.x = x
+      this.y = y
+    }
+    setVelocity = (velocity) => {
+      this.velocity = velocity
+    }
+    applyVelocity = () => {
+      this.x += this.velocity.x
+      this.y += this.velocity.y
+    }
+  }
+
+  class Velocity {
+    constructor(x, y) {
+      this.x = x
+      this.y = y
+    }
+    setValues = (x, y) => {
+      this.x = x;
+      this.y = y;
+    }
+    setAcceleration = (acceleration) => {
+      this.acceleration = acceleration
+    }
+    applyAcceleration = () => {
+      this.x += this.acceleration.x
+      this.y += this.acceleration.y
+    }
+  }
+
+  function clear() {
+    context.save()
+    context.clearRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    )
+    context.restore()
+  }
+
+  function draw(object) {
+    context.save()
+    if (object instanceof Circle) {
+      context.fillStyle = object.color
+      context.beginPath()
+      context.arc(
+        object.x,
+        object.y,
+        object.radius,
+        0,
+        Math.PI * 2,
+      )
+      context.fill()
+      context.closePath()
+    }
+    context.restore()
+  }
+
+  function calculateNewPosition(object) {
+    object.applyVelocity()
+    object.velocity.applyAcceleration()
+
+    // if (object.y + object.radius >= canvas.height) {
+
+    //   object.velocity.y = -object.velocity.y
+    //   object.y = canvas.height - object.radius
+    //   object.x += object.acceleration.x
+    //   object.y += object.acceleration.y
+
+    // } 
+    
+    if (object.y + object.radius >= canvas.height) {
+      object.velocity.setValues(
+        object.velocity.x,
+        -object.velocity.y
+      )
+
+      object.setPosition(
+        object.x, 
+        canvas.height - object.radius
+      )
+      object.velocity.applyAcceleration()
+    } else if (object.x + object.radius >= canvas.width) {
+      object.velocity.setValues(
+        -object.velocity.x,
+        object.velocity.y
+      )
+
+      object.setPosition(
+        canvas.width - object.radius,
+        object.y
+      )
+      object.velocity.applyAcceleration()
+    } else if (object.x - object.radius <= 0) {
+      object.velocity.setValues(
+        -object.velocity.x,
+        object.velocity.y
+      )
+    } else {
+      // Debug Notes:
+      //  - Something weird happens when this is removed
+
+      // object.velocity.applyAcceleration()
+      // object.applyVelocity()
+    }
+
+  }
+
+  const colors = [
+    "fuchsia",
+    "lime",
+    "coral",
+    "aqua",
+    "maroon"
+  ]
+
+  window.onload = () => {
+    canvas.width = 1920;
+    canvas.height = 1080;
+
+    const acceleration = {
+      x: 0,
+      y: 2.5
+    }
+
+    circlesArray = (() => {
+      const array = [];
+      for (let i = 1; i <= 1; i++) {
+        for (let j = 1; j <= 1; j++) {
+          const circle = new Circle((i+j)  * 150,  j * 150, 50, colors[(i+j)%5])
+          const velocity = new Velocity(0, 0)
+
+          velocity.setAcceleration(acceleration);
+          circle.setVelocity(velocity)
+
+          array.push(circle)
+        }
+
+      }
+      return array;
+    })()
+
+    for (const circle of circlesArray) {
+      draw(circle)
+    }
+
+    bounceLoop = () => {
+      for (const circle of circlesArray) {
+        calculateNewPosition(circle);
+      }
+
+      clear()
+
+      for (const circle of circlesArray) {
+        draw(circle)
+      }
+
+      requestAnimationFrame(bounceLoop);
+    }
+
+    // bounceLoop()
+  }
+
+</script>
+
+</html>

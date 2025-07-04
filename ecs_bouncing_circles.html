@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background-image: linear-gradient(to right, rgb(51, 204, 204), rgb(102, 255, 102));
+  }
+
+  canvas {
+    background-color: black;
+    width: 100vw;
+  }
+</style>
+
+<body>
+  <canvas id="myCanvas"></canvas>
+</body>
+<script>
+  // JS keeps original dimensions
+  const canvas = document.querySelector('#myCanvas');
+  const context = canvas.getContext('2d');
+
+  const entityList = [];
+
+  window.onload = () => {
+    canvas.width = 1920;
+    canvas.height = 1080;
+    let clicks = 0;
+    window.addEventListener('keydown', (e) => {
+      if (e.keyCode === 32) {
+        e.preventDefault();
+        animationLoop();
+
+        clicks++;
+
+        console.log(`Click # ${clicks}`)
+      }
+    })
+
+    const gravity = new Acceleration(0, 2);
+
+    const circlesArray = (() => {
+      const radius = 10;
+      const rowCount = 25;
+      const colCount = 25;
+      const spacing = 20;
+      const array = [];
+      const colors = [
+        "fuchsia",
+        "lime",
+        "coral",
+        "aqua",
+        "maroon",
+        "purple"
+      ];
+      for (let i = 1; i <= rowCount; i++) {
+        for (let j = 1; j <= colCount; j++) {
+          const x = (i * spacing) + (j * spacing)
+          const y = j * spacing
+          const modulo = (i + j) % colors.length;
+          const circle = new Entity(`Ball_${i}_${j}`);
+          circle.addComponent(new Position(x, y));
+          circle.addComponent(new Velocity(0, 0));
+          circle.addComponent(new Render_Circle(radius, colors[modulo]))
+          circle.addComponent(gravity);
+          array.push(circle);
+        }
+      }
+      return array;
+    })();
+
+    entityList.push(...circlesArray)
+
+    applySystems = () => {
+      for (const system of Systems) {
+        system(entityList);
+      }
+    }
+
+    animationLoop = () => {
+      applySystems();
+      requestAnimationFrame(animationLoop);
+    }
+
+    Systems[3](entityList)
+
+  }
+
+  class Position {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+  }
+
+  class Velocity {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+  }
+
+  class Acceleration {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+  }
+
+  class UserInput {
+    constructor(direction) {
+      this.direction = direction;
+    }
+  }
+
+  class Render_Circle {
+    constructor(radius, color) {
+      this.radius = radius;
+      this.color = color;
+    }
+  }
+
+  class Entity {
+    constructor(id) {
+      this.id = id;
+      this.components = {};
+      this.addComponent = (component) => {
+        if (component.constructor === undefined) {
+          throw new Error("Entity.addComponent method can only take a component instance")
+        }
+        this.components[component.constructor.name] = component;
+      };
+      this.removeComponent = (componentName) => {
+        if (typeof componentName !== "string") {
+          throw new Error("Entity.removeComponent method can only take a string")
+        }
+        delete this.components[componentName];
+      }
+      this.hasComponent = (componentName) => {
+        if (typeof componentName !== "string") {
+          throw new Error("Entity.hasComponent method can only take a string")
+        }
+        return this.components[componentName] !== undefined;
+      }
+    }
+  }
+
+  const Systems = (() => {
+
+    const UserInputs = (entityList) => {
+      const updatableEntities = entityList.filter(e => e.hasComponent(UserInput.name))
+    }
+
+    const Kinematics = (entityList) => {
+      const updatableEntities = entityList.filter(e => e.hasComponent(Velocity.name))
+      for (const entity of updatableEntities) {
+        if (entity.hasComponent(Acceleration.name)) {
+          entity.components[Velocity.name].x += entity.components[Acceleration.name].x
+          entity.components[Velocity.name].y += entity.components[Acceleration.name].y
+        }
+
+        entity.components[Position.name].x += entity.components[Velocity.name].x
+        entity.components[Position.name].y += entity.components[Velocity.name].y
+      }
+    }
+
+    const Collision = (entityList) => {
+      const hitFloor = (entity) => {
+        const lowestHeight = canvas.height - entity.components[Render_Circle.name].radius
+        if (entity.components[Position.name].y >= lowestHeight) {
+          const prevHeight = entity.components[Position.name].y - entity.components[Velocity.name].y
+          const percentDiff = (lowestHeight - prevHeight) / (entity.components[Position.name].y - prevHeight)
+          entity.components[Position.name].y = lowestHeight
+          entity.components[Velocity.name].y -= entity.components[Acceleration.name].y
+          entity.components[Velocity.name].y += (percentDiff * entity.components[Acceleration.name].y)
+        }
+        if (entity.components[Position.name].y === lowestHeight) {
+          entity.components[Velocity.name].y += entity.components[Acceleration.name].y
+          entity.components[Velocity.name].y *= -1;
+        }
+      }
+      const updatableEntities = entityList.filter(e => e.components[Position.name])
+      for (const entity of updatableEntities) {
+        hitFloor(entity)
+      }
+    }
+
+    const Render = (entityList) => {
+      const clear = () => {
+        context.save()
+        context.clearRect(
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        )
+        context.restore()
+      }
+      const draw = (entity) => {
+        context.save()
+        if (entity.id.startsWith("Ball_")) {
+          context.fillStyle = entity.components[Render_Circle.name].color
+          context.beginPath()
+          context.arc(
+            entity.components[Position.name].x,
+            entity.components[Position.name].y,
+            entity.components[Render_Circle.name].radius,
+            0,
+            Math.PI * 2,
+          )
+          context.fill()
+          context.closePath()
+        }
+        context.restore()
+      }
+      const updatableEntities = entityList.filter(e => e.components[Position.name])
+      clear()
+      for (const entity of updatableEntities) {
+        draw(entity)
+      }
+    }
+
+    return [
+      UserInputs,
+      Kinematics,
+      Collision,
+      Render,
+    ]
+  })();
+
+
+</script>
+
+</html>

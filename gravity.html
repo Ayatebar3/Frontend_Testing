@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas Playground</title>
+</head>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background-image: linear-gradient(to right, rgb(51, 204, 204), rgb(102, 255, 102));
+  }
+
+  canvas {
+    background-color: black;
+    width: 100vw;
+  }
+</style>
+
+<body>
+  <div id="app"></div>
+</body>
+
+<script>
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  const getCanvasOffset = () => {
+    return canvas.getBoundingClientRect();
+  }
+
+  const getCanvasScaleFactors = (offset) => {
+    return {
+      x: canvas.width / offset.width,
+      y: canvas.height / offset.height
+    }
+  }
+
+  const getMouseOnCanvasPosition = (mouseCoordinates) => {
+    const canvasOffset = getCanvasOffset();
+    const scaleFactors = getCanvasScaleFactors(canvasOffset);
+    return {
+      x: (mouseCoordinates.x - canvasOffset.left) * scaleFactors.x,
+      y: (mouseCoordinates.y - canvasOffset.top) * scaleFactors.y
+    }
+  }
+
+  window.onload = () => {
+    canvas.height = 1080;
+    canvas.width = 1920;
+    document.getElementById('app').appendChild(canvas);
+
+    canvas.addEventListener('click', (e) => {
+      const { x, y } = getMouseOnCanvasPosition(e);
+      particles.push(new Particle(x, y))
+    })
+
+    animationLoop();
+  }
+
+  class Vector2D {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+  }
+
+  class Particle {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.mass = 100;
+      this.velocity = {
+        x: 0,
+        y: 0,
+      }
+      this.consumed = false;
+    }
+  }
+
+  class BlackHole {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.mass = 100;
+      this.radius = 100;
+    }
+  }
+
+  const blackHoles = [
+    new BlackHole(500, 500)
+  ];
+  const particles = [];
+
+  const GRAVITATIONAL_CONSTANT = 10;
+
+  function gravitationalForceVector(B, p) {
+    const direction = Vector2DMath.difference(B, p);
+    const distanceSquared = Vector2DMath.distSquared(B, p);
+    if (distanceSquared < 1000) {
+      p.consumed = true;
+    }
+    const forceScalar = (GRAVITATIONAL_CONSTANT * B.mass * p.mass) / distanceSquared;
+    return Vector2DMath.normalize(direction, forceScalar);
+  }
+
+  const applySystems = () => {
+    for (const system of Systems) {
+      system();
+    }
+  }
+
+  const animationLoop = () => {
+    applySystems();
+    requestAnimationFrame(animationLoop);
+  }
+
+  const Systems = (() => {
+    const Kinematics = () => {
+      const b = blackHoles[0];
+      const p = particles[0];
+      for (const p of particles) {
+        const acceleration = gravitationalForceVector(b, p);
+        if (p.consumed) {
+          continue;
+        }
+
+        // console.log({b})
+        // console.log({p})
+        // console.log({forceVector})
+
+        // alert("Pause")
+
+        p.velocity.x += acceleration.x;
+        p.velocity.y += acceleration.y;
+        p.x += p.velocity.x;
+        p.y += p.velocity.y;
+      }
+    }
+    const Render = () => {
+      clear();
+      for (const b of blackHoles) {
+        renderBlackHole(b)
+      }
+      for (const p of particles) {
+        renderParticle(p)
+      }
+    }
+
+    function clear() {
+      context.save();
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.restore();
+    }
+
+    function renderBlackHole(B) {
+      const ringCount = B.radius / 10;
+      for (let rad = 1; rad <= ringCount; rad++) {
+        context.save();
+        context.lineWidth = 5;
+        context.strokeStyle = "lime";
+        context.beginPath();
+        context.arc(B.x, B.y, rad * 10, 0, Math.PI * 2);
+        context.stroke();
+        context.restore();
+      }
+    }
+
+    function renderParticle(p) {
+      context.save()
+      context.fillStyle = "fuchsia"
+      context.beginPath()
+      context.arc(
+        p.x,
+        p.y,
+        10,
+        0,
+        Math.PI * 2,
+      )
+      context.fill()
+      context.closePath()
+      context.restore()
+    }
+
+    return [
+      Kinematics,
+      Render
+    ]
+  })()
+
+  const Vector2DMath = (() => {
+    const sum = (A, B) => {
+      return new Vector2D(
+        A.x + B.x,
+        A.y + B.y
+      )
+    }
+    const difference = (A, B) => {
+      return new Vector2D(
+        A.x - B.x,
+        A.y - B.y
+      )
+    }
+    const scale = (A, s) => {
+      return new Vector2D(
+        s * A.x,
+        s * A.y
+      )
+    }
+    const magnitude = (A) => {
+      return Math.sqrt(
+        (A.x ** 2) + (A.y ** 2)
+      )
+    }
+    const normalize = (A, s = 1) => {
+      if (!A.x && !A.y) {
+        return A;
+      }
+      const mag = magnitude(A);
+      return new Vector2D(
+        s * A.x / mag,
+        s * A.y / mag
+      )
+    }
+    const distance = (A, B) => {
+      return magnitude(difference(A, B));
+    }
+    const distSquared = (A, B) => {
+      const { x, y } = difference(A, B);
+      return (
+        (x ** 2) + (y ** 2)
+      )
+    }
+    const dotProduct = (A, B) => {
+      return (
+        (A.x * B.x) + (A.y * B.y)
+      )
+    }
+    const angleBetween = (A, B) => {
+      const dot = dotProduct(A, B);
+      const A_mag = magnitude(A);
+      const B_mag = magnitude(B);
+      return Math.acos(
+        dot / (A_mag * B_mag)
+      )
+    }
+
+    return {
+      sum,
+      difference,
+      scale,
+      magnitude,
+      normalize,
+      distance,
+      distSquared,
+      dotProduct,
+      angleBetween
+    }
+  })();
+
+</script>
+
+</html>

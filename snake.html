@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake Game</title>
+</head>
+<style>
+  body {
+    padding: 0;
+    margin: 0;
+  }
+
+  canvas {
+    background-color: black;
+    width: 100vw;
+  }
+</style>
+
+<body>
+  <canvas id="pohui"></canvas>
+</body>
+<script>
+
+  const canvas = document.querySelector('#pohui')
+  const context = canvas.getContext('2d')
+
+  canvas.width = 1280;
+  canvas.height = 720;
+
+  const timeDelay = 250;
+  const gridSpacing = 50;
+
+  ///////////////////////////////////////////////////////////
+
+  window.onload = () => {
+
+    food = (() => {
+      const position = new Position(250, 250);
+      const relocate = () => {
+        position.setPosition(
+          Math.floor(Math.random() * 10) * gridSpacing,
+          Math.floor(Math.random() * 10) * gridSpacing
+        )
+      }
+
+      return {
+        position, 
+        relocate
+      }
+
+    })();
+
+    player = (() => {
+      const position = new Position(500, 500)
+      const velocity = new Velocity(0, -gridSpacing)
+      position.setVelocity(velocity)
+
+      return {
+        position,
+        velocity
+      }
+
+    })();
+
+    clearScreen = () => {
+      context.save()
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      context.restore()
+    }
+
+    drawFood = (food) => {
+      const spacing = gridSpacing / 2
+      context.save();
+      context.fillStyle = "lime"
+      context.beginPath()
+      context.arc(
+        food.x + spacing,
+        food.y + spacing,
+        spacing,
+        0,
+        Math.PI * 2
+      )
+      context.fill()
+      context.restore()
+    }
+
+    drawBlock = (block) => {
+      context.save();
+      context.lineWidth = 5;
+      context.strokeStyle = "aqua"
+      context.fillStyle = "fuchsia"
+      context.fillRect(
+        block.x,
+        block.y,
+        gridSpacing,
+        gridSpacing
+      );
+      context.strokeRect(
+        block.x,
+        block.y,
+        gridSpacing,
+        gridSpacing
+      );
+      context.restore()
+    }
+
+    window.addEventListener("keydown", (event) => {
+      const key = event.keyCode;
+      console.log(`KeyCode: ${key}`)
+      switch (key) {
+        case 65:
+          player.velocity.directLeft()
+          break;
+        case 83:
+          player.velocity.directDown()
+          break;
+        case 68:
+          player.velocity.directRight()
+          break;
+        case 87:
+          player.velocity.directUp()
+          break;
+        case 32:
+          animationLoop()
+      }
+    })
+
+    drawBlock(player.position)
+    drawFood(food.position)
+    
+  ///////////////////////////////////////////////////////////
+
+    let then = Date.now();
+
+    animationLoop = () => {
+      requestAnimationFrame(animationLoop)
+      const now = Date.now();
+      if (now - then < timeDelay) {
+        return
+      }
+      then = now
+      player.position.applyVelocity();
+      if (didPlayerObtainFood()) {
+        food.relocate();
+      }
+      clearScreen();
+      drawBlock(player.position)
+      drawFood(food.position)
+    }
+
+    didPlayerObtainFood = () => {
+      return (player.position.x === food.position.x 
+        && player.position.y === food.position.y)
+    }
+
+    // animationLoop()
+
+  }
+
+
+  ///////////////////////////////////////////////////////////
+
+  class Position {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
+    setPosition = (x, y) => {
+      this.x = x;
+      this.y = y;
+    }
+    setVelocity = (velocity) => {
+      this.velocity = velocity
+    }
+    applyVelocity = () => {
+      this.x += this.velocity.x
+      this.y += this.velocity.y
+    }
+  }
+
+  class Velocity {
+    constructor(x, y) {
+      this.x = x
+      this.y = y
+    }
+    directUp = () => {
+      this.y = this.x !== 0 ?
+        -Math.abs(this.x) :
+        -Math.abs(this.y)
+
+      this.x = 0;
+    }
+    directDown = () => {
+      this.y = this.x !== 0 ?
+        Math.abs(this.x) :
+        Math.abs(this.y)
+
+      this.x = 0;
+    }
+    directLeft = () => {
+      this.x = this.y !== 0 ?
+        -Math.abs(this.y) :
+        -Math.abs(this.x)
+
+      this.y = 0;
+    }
+    directRight = () => {
+      this.x = this.y !== 0 ?
+        Math.abs(this.y) :
+        Math.abs(this.x)
+
+      this.y = 0;
+    }
+  }
+
+</script>
+
+</html>
